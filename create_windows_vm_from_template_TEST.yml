@@ -1,0 +1,63 @@
+---
+- name: Clone a virtual machine from Windows template and customize
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  
+  vars_files:
+    - vault/vcenter_secrets.yml
+  
+  vars:
+    vm_name: wintestvm_2
+    vm_template: template_windows10
+    #notes: "Deployed with ansible"
+    vm_datacenter: "DC1"
+    #vm_cluster: "cluster1"
+    vm_folder: "/vm"
+    vm_datastore: datastore1
+    vm_ip: 172.16.113.65
+
+  tasks:
+  # Create a VM from a template
+  - name: create the VM
+    vmware_guest:
+      hostname: "{{ vcenter_server }}"
+      username: "{{ vcenter_user }}"
+      password: "{{ vcenter_pass }}"
+      validate_certs: no
+      datacenter: "{{ vm_datacenter }}"
+      folder: "{{ vm_folder }}"
+      #cluster: "{{ vm_cluster }}"
+      name: "{{ vm_name }}"
+      template: "{{ vm_template }}"
+
+      #disk:
+      #- datastore: "{{ vm_datastore }}"
+
+      networks:
+      - name: VM Network
+        ip: "{{ vm_ip }}"
+        netmask: 255.255.255.0
+        gateway: 172.16.113.2
+        mac: aa:bb:dd:aa:00:14
+        domain: my_domain
+        dns_servers:
+        - 172.16.113.2
+        - 172.16.113.3
+      #- vlan: 1
+      #  type: static
+
+      hardware:
+        memory_mb: 1024
+        num_cpus: 1
+
+      customization:
+        autologon: yes
+        dns_servers:
+        - 172.16.113.2
+        - 172.16.113.3
+        domain: my_domain
+        password: 1234
+        runonce:
+        - powershell.exe -ExecutionPolicy Unrestricted -File C:\Windows\Temp\ConfigureRemotingForAnsible.ps1 -ForceNewSSLCert -EnableCredSSP
+    delegate_to: localhost
